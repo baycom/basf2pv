@@ -1,6 +1,7 @@
 This simple script extracts radiation data forecasts from german 'BASF Agrarwetter' data. It prints out the upcoming 7 days and publishes a MQTT message with thse data.
 
 Usage:
+```
 node index.js --latitude 48.070833 --longitude 11.202778 --mqtthost mqtt-server --factor 22
 
 Last updated: 14:54
@@ -20,3 +21,4 @@ Last updated: 14:54
 2023-10-21T01:00+0200 : 1843w/m2 / 40.546kWh
 2023-10-22T01:00+0200 : 1811w/m2 / 39.842kWh
 2023-10-23T01:00+0200 : 866w/m2 / 19.052kWh
+```
