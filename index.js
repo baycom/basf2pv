@@ -28,7 +28,7 @@ if (options.debug) {
 }
 
 function sendMqtt(data) {
-	MQTTclient.publish(options.path + options.latitude + "/" + options.longitude, JSON.stringify(data));
+	MQTTclient.publish(options.path + "/" + options.latitude + "/" + options.longitude, JSON.stringify(data));
 }
 
 if (options.mqtthost) {
