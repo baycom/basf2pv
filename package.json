@@ -1,0 +1,16 @@
+{
+  "name": "basf2pv",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "command-line-args": "^5.2.1",
+    "https": "^1.0.0",
+    "mqtt": "^4.3.7"
+  }
+}
