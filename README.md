@@ -1,4 +1,4 @@
-This simple script extracts radiation data forecasts from german 'BASF Agrarwetter' data. It prints out the upcoming 7 days and publishes a MQTT message with thse data.
+This simple script extracts radiation data forecasts from german 'BASF Agrarwetter' data. It prints out the upcoming 7 days and publishes a MQTT message with these data.
 
 Usage:
 
