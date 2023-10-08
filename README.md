@@ -1,6 +1,9 @@
 This simple script extracts radiation data forecasts from german 'BASF Agrarwetter' data. It prints out the upcoming 7 days and publishes a MQTT message with thse data.
 
 Usage:
+
+Specify your geographic location, an optional MQTT server and a factor which is specific to your PV peak power in kW.
+
 ```
 node index.js --latitude 48.070833 --longitude 11.202778 --mqtthost mqtt-server --factor 22
 
