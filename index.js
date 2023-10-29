@@ -49,8 +49,12 @@ setTimeout(function () {
 	process.exit();
 }, 1000);
 
+const http_options = {
+    timeout: 10000
+};
 
-https.get("https://www.agrar.basf.de/api/weather/weatherDetails?lang=de&latitude=" + options.latitude + "&longitude=" + options.longitude, function (res) {
+
+https.get("https://www.agrar.basf.de/api/weather/weatherDetails?lang=de&latitude=" + options.latitude + "&longitude=" + options.longitude, http_options, function (res) {
 	var body = '';
 	res.on('data', function (chunk) {
 		body += chunk;
@@ -71,7 +75,7 @@ https.get("https://www.agrar.basf.de/api/weather/weatherDetails?lang=de&latitude
 					dayradwm2 += hour.radwm2;
 				});
 				obj[datestr] = dayradwm2 = dayradwm2;
-				console.log(datestr + " : " + dayradwm2 + "w/m2 / " + (dayradwm2 * 22) / 1000 + "kWh");
+				console.log(datestr + " : " + dayradwm2 + "w/m2 / " + (dayradwm2 * options.factor) / 1000 + "kWh");
 			}
 		});
 		if (options.debug) {
