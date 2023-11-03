@@ -75,7 +75,8 @@ https.get("https://www.agrar.basf.de/api/weather/weatherDetails?lang=de&latitude
 					dayradwm2 += hour.radwm2;
 				});
 				obj[datestr] = dayradwm2 = dayradwm2;
-				console.log(datestr + " : " + dayradwm2 + "w/m2 / " + (dayradwm2 * options.factor) / 1000 + "kWh");
+				const date = new Date(datestr);
+				console.log(date.toDateString() + " : " + dayradwm2 + "w/m2 / " + (dayradwm2 * options.factor) / 1000 + "kWh");
 			}
 		});
 		if (options.debug) {
