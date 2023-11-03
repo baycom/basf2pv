@@ -21,10 +21,10 @@ if (options.debug) {
 	console.log("MQTT host     : " + options.mqtthost);
 	console.log("MQTT Client ID: " + options.id);
 	console.log("MQTT path     : " + options.path)
-	console.log("Latitude      : " + options.latitude);
-	console.log("Longitude     : " + options.longitude);
-	console.log("Factor        : " + options.factor);
 }
+console.log("Latitude      : " + options.latitude);
+console.log("Longitude     : " + options.longitude);
+console.log("Factor        : " + options.factor);
 
 if (options.mqtthost) {
 	MQTTclient = mqtt.connect("mqtt://" + options.mqtthost, { clientId: options.id });
