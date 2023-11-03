@@ -2,7 +2,6 @@ var https = require('https');
 var util = require('util');
 var mqtt = require('mqtt');
 const commandLineArgs = require('command-line-args');
-const { Console } = require('console');
 
 var MQTTclient;
 
@@ -27,65 +26,72 @@ if (options.debug) {
 	console.log("Factor        : " + options.factor);
 }
 
-function sendMqtt(data) {
-	MQTTclient.publish(options.path + "/" + options.latitude + "/" + options.longitude, JSON.stringify(data));
-}
-
 if (options.mqtthost) {
 	MQTTclient = mqtt.connect("mqtt://" + options.mqtthost, { clientId: options.id });
 	MQTTclient.on("connect", function () {
 		if (options.debug) {
 			console.log("MQTT connected");
 		}
+		start();
 	})
 
 	MQTTclient.on("error", function (error) {
 		console.log("Can't connect" + error);
 		process.exit(1)
 	});
+} else {
+	start();
 }
 
-setTimeout(function () {
-	process.exit();
-}, 1000);
+async function sendMqtt(data) {
+	MQTTclient.publish(options.path + "/" + options.latitude + "/" + options.longitude, JSON.stringify(data));
+	MQTTclient.end();
+}
 
-const http_options = {
-    timeout: 10000
-};
+async function getForecast() {
+	return new Promise((resolve, reject) => {
+		https.get("https://www.agrar.basf.de/api/weather/weatherDetails?lang=de&latitude=" + options.latitude + "&longitude=" + options.longitude, {
+			timeout: 10000
+		}, function (res) {
+			var body = '';
+			res.on('data', function (chunk) {
+				body += chunk;
+			});
+			res.on('end', function () {
+				var response = JSON.parse(body);
+				var datecnt = 0;
+				var obj = {};
 
-
-https.get("https://www.agrar.basf.de/api/weather/weatherDetails?lang=de&latitude=" + options.latitude + "&longitude=" + options.longitude, http_options, function (res) {
-	var body = '';
-	res.on('data', function (chunk) {
-		body += chunk;
-	});
-	res.on('end', function () {
-		var response = JSON.parse(body);
-		var datecnt = 0;
-		var obj = {};
-
-		console.log("Last updated: " + response.lastUpdated);
-		obj.lastUpdated = response.lastUpdated;
-		response.days1h.forEach(day => {
-			for (const key in day) {
-				var datestr = response.day1h.isotime[datecnt];
-				var dayradwm2 = 0;
-				day[key].forEach(hour => {
-					var isodate = response.day1h.isotime[datecnt++]
-					dayradwm2 += hour.radwm2;
+				console.log("Last updated: " + response.lastUpdated);
+				obj.lastUpdated = response.lastUpdated;
+				response.days1h.forEach(day => {
+					for (const key in day) {
+						var datestr = response.day1h.isotime[datecnt];
+						var dayradwm2 = 0;
+						day[key].forEach(hour => {
+							var isodate = response.day1h.isotime[datecnt++]
+							dayradwm2 += hour.radwm2;
+						});
+						obj[datestr] = dayradwm2 = dayradwm2;
+						const date = new Date(datestr);
+						console.log(date.toDateString() + " : " + dayradwm2 + "w/m2 / " + (dayradwm2 * options.factor) / 1000 + "kWh");
+					}
 				});
-				obj[datestr] = dayradwm2 = dayradwm2;
-				const date = new Date(datestr);
-				console.log(date.toDateString() + " : " + dayradwm2 + "w/m2 / " + (dayradwm2 * options.factor) / 1000 + "kWh");
-			}
+				if (options.debug) {
+					console.log(util.inspect(obj));
+				}
+				resolve(obj);
+			});
+		}).on('error', function (e) {
+			console.log("Got error: " + e.message);
+			reject(e.message);
 		});
-		if (options.debug) {
-			console.log(util.inspect(obj));
-		}
-		if (options.mqtthost) {
-			sendMqtt(obj);
-		}
 	});
-}).on('error', function (e) {
-	console.log("Got error: " + e.message);
-});
+}
+
+async function start() {
+	var obj=await getForecast();
+	if (options.mqtthost) {
+		await sendMqtt(obj);
+	}
+}
