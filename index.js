@@ -13,6 +13,7 @@ const optionDefinitions = [
 	{ name: 'latitude', alias: 'l', type: Number, defaultValue: 48.070833 },
 	{ name: 'longitude', alias: 'L', type: Number, defaultValue: 11.202778 },
 	{ name: 'factor', alias: 'f', type: Number, defaultValue: 22 },
+	{ name: 'skip', alias: 's', type: Boolean, defaultValue: false }
 ];
 
 const options = commandLineArgs(optionDefinitions)
@@ -61,20 +62,25 @@ async function getForecast() {
 				var response = JSON.parse(body);
 				var datecnt = 0;
 				var obj = {};
+				var skipped = false;
 
 				console.log("Last updated: " + response.lastUpdated);
 				obj.lastUpdated = response.lastUpdated;
 				response.days1h.forEach(day => {
 					for (const key in day) {
-						var datestr = response.day1h.isotime[datecnt];
-						var dayradwm2 = 0;
-						day[key].forEach(hour => {
-							var isodate = response.day1h.isotime[datecnt++]
-							dayradwm2 += hour.radwm2;
-						});
-						obj[datestr] = dayradwm2 = dayradwm2;
-						const date = new Date(datestr);
-						console.log(date.toDateString() + " : " + dayradwm2 + "w/m2 / " + (dayradwm2 * options.factor) / 1000 + "kWh");
+							var datestr = response.day1h.isotime[datecnt];
+							var dayradwm2 = 0;
+							day[key].forEach(hour => {
+								var isodate = response.day1h.isotime[datecnt++];
+								dayradwm2 += hour.radwm2;
+							});
+						if(options.skip == false || skipped == true)  {
+							obj[datestr] = dayradwm2;
+							const date = new Date(datestr);
+							console.log(date.toDateString() + " : " + dayradwm2 + "w/m2 / " + (dayradwm2 * options.factor) / 1000 + "kWh");
+						} else {
+							skipped = true;
+						}
 					}
 				});
 				if (options.debug) {
