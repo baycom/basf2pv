@@ -6,7 +6,7 @@ const commandLineArgs = require('command-line-args');
 var MQTTclient;
 
 const optionDefinitions = [
-	{ name: 'path', alias: 'p', type: String, defaultValue: "yield/prognosis/pv" },
+	{ name: 'path', alias: 'p', type: String, defaultValue: "agg/prognosis/pv" },
 	{ name: 'id', alias: 'i', type: String, defaultValue: "pvprognosis" },
 	{ name: 'debug', alias: 'd', type: Boolean, defaultValue: false },
 	{ name: 'mqtthost', alias: 'm', type: String },
@@ -45,7 +45,7 @@ if (options.mqtthost) {
 }
 
 async function sendMqtt(data) {
-	MQTTclient.publish(options.path + "/" + options.latitude + "/" + options.longitude, JSON.stringify(data));
+	MQTTclient.publish(options.path + "/" + options.latitude + "/" + options.longitude, JSON.stringify(data), { retain: true });
 	MQTTclient.end();
 }
 
