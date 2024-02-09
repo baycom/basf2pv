@@ -13,6 +13,7 @@ const optionDefinitions = [
 	{ name: 'latitude', alias: 'l', type: Number, defaultValue: 48.070833 },
 	{ name: 'longitude', alias: 'L', type: Number, defaultValue: 11.202778 },
 	{ name: 'factor', alias: 'f', type: Number, defaultValue: 22 },
+	{ name: 'retry', alias: 'r', type: Number, defaultValue: 3 },
 	{ name: 'skip', alias: 's', type: Boolean, defaultValue: false }
 ];
 
@@ -68,13 +69,13 @@ async function getForecast() {
 				obj.lastUpdated = response.lastUpdated;
 				response.days1h.forEach(day => {
 					for (const key in day) {
-							var datestr = response.day1h.isotime[datecnt];
-							var dayradwm2 = 0;
-							day[key].forEach(hour => {
-								var isodate = response.day1h.isotime[datecnt++];
-								dayradwm2 += hour.radwm2;
-							});
-						if(options.skip == false || skipped == true)  {
+						var datestr = response.day1h.isotime[datecnt];
+						var dayradwm2 = 0;
+						day[key].forEach(hour => {
+							var isodate = response.day1h.isotime[datecnt++];
+							dayradwm2 += hour.radwm2;
+						});
+						if (options.skip == false || skipped == true) {
 							obj[datestr] = dayradwm2;
 							const date = new Date(datestr);
 							console.log(date.toDateString() + " : " + dayradwm2 + "w/m2 / " + (dayradwm2 * options.factor) / 1000 + "kWh");
@@ -96,8 +97,13 @@ async function getForecast() {
 }
 
 async function start() {
-	var obj=await getForecast();
-	if (options.mqtthost) {
-		await sendMqtt(obj);
+	var tries = options.retry;
+	while (tries--) {
+		var obj = await getForecast();
+		if (obj)
+			if (options.mqtthost) {
+				await sendMqtt(obj);
+			}
+		break;
 	}
 }
