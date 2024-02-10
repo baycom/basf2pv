@@ -17,16 +17,7 @@ const optionDefinitions = [
 	{ name: 'skip', alias: 's', type: Boolean, defaultValue: false }
 ];
 
-const options = commandLineArgs(optionDefinitions)
-
-if (options.debug) {
-	console.log("MQTT host     : " + options.mqtthost);
-	console.log("MQTT Client ID: " + options.id);
-	console.log("MQTT path     : " + options.path)
-}
-console.log("Latitude      : " + options.latitude);
-console.log("Longitude     : " + options.longitude);
-console.log("Factor        : " + options.factor);
+const options = commandLineArgs(optionDefinitions);
 
 if (options.mqtthost) {
 	MQTTclient = mqtt.connect("mqtt://" + options.mqtthost, { clientId: options.id });
@@ -53,14 +44,20 @@ async function sendMqtt(data) {
 async function getForecast() {
 	return new Promise((resolve, reject) => {
 		https.get("https://www.agrar.basf.de/api/weather/weatherDetails?lang=de&latitude=" + options.latitude + "&longitude=" + options.longitude, {
-			timeout: 10000
+			timeout: 3000
 		}, function (res) {
 			var body = '';
 			res.on('data', function (chunk) {
 				body += chunk;
 			});
 			res.on('end', function () {
-				var response = JSON.parse(body);
+				var response;
+				try {
+					response = JSON.parse(body);
+				} catch (e) {
+					reject(e.message);
+					return;
+				}
 				var datecnt = 0;
 				var obj = {};
 				var skipped = false;
@@ -98,12 +95,21 @@ async function getForecast() {
 
 async function start() {
 	var tries = options.retry;
-	while (tries--) {
-		var obj = await getForecast();
-		if (obj && Object.keys(obj).length)
+	while (tries) {
+		var obj = await getForecast().catch((e) => { tries-- });
+		if (obj && Object.keys(obj).length) {
+			if (options.debug) {
+				console.log("MQTT host     : " + options.mqtthost);
+				console.log("MQTT Client ID: " + options.id);
+				console.log("MQTT path     : " + options.path)
+			}
+			console.log("\nLatitude      : " + options.latitude);
+			console.log("Longitude     : " + options.longitude);
+			console.log("Factor        : " + options.factor);
 			if (options.mqtthost) {
 				await sendMqtt(obj);
 			}
-		break;
+			break;
+		}
 	}
 }
