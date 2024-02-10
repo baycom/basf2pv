@@ -100,7 +100,7 @@ async function start() {
 	var tries = options.retry;
 	while (tries--) {
 		var obj = await getForecast();
-		if (obj)
+		if (obj && Object.keys(obj).length)
 			if (options.mqtthost) {
 				await sendMqtt(obj);
 			}
