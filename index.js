@@ -62,7 +62,6 @@ async function getForecast() {
 				var obj = {};
 				var skipped = false;
 
-				console.log("Last updated: " + response.lastUpdated);
 				obj.lastUpdated = response.lastUpdated;
 				response.days1h.forEach(day => {
 					for (const key in day) {
@@ -106,6 +105,8 @@ async function start() {
 			console.log("\nLatitude      : " + options.latitude);
 			console.log("Longitude     : " + options.longitude);
 			console.log("Factor        : " + options.factor);
+			console.log("Last updated  : " + obj.lastUpdated);
+
 			if (options.mqtthost) {
 				await sendMqtt(obj);
 			}
