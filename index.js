@@ -74,7 +74,8 @@ async function getForecast() {
 						if (options.skip == false || skipped == true) {
 							obj[datestr] = dayradwm2;
 							const date = new Date(datestr);
-							console.log(date.toDateString() + " : " + dayradwm2 + "w/m2 / " + (dayradwm2 * options.factor) / 1000 + "kWh");
+							let power = (dayradwm2 * options.factor) / 1000;
+							console.log(date.toDateString() + " : " + dayradwm2 + "w/m2 / " + power.toFixed(0) + "kWh");
 						} else {
 							skipped = true;
 						}
