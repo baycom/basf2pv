@@ -1,12 +1,15 @@
-var https = require('https');
-var util = require('util');
-var mqtt = require('mqtt');
+let https = require('https');
+let util = require('util');
+let mqtt = require('mqtt');
 const commandLineArgs = require('command-line-args');
 
-var MQTTclient;
+let MQTTclient;
+let access_token;
 
 const optionDefinitions = [
 	{ name: 'path', alias: 'p', type: String, defaultValue: "prognosis/pv" },
+	{ name: 'bind', alias: 'b', type: String },
+	{ name: 'token', alias: 't', type: Boolean, defaultValue: false },
 	{ name: 'id', alias: 'i', type: String, defaultValue: "pvprognosis" },
 	{ name: 'debug', alias: 'd', type: Boolean, defaultValue: false },
 	{ name: 'mqtthost', alias: 'm', type: String },
@@ -26,6 +29,7 @@ if (options.mqtthost) {
 		if (options.debug) {
 			console.log("MQTT connected");
 		}
+		MQTTclient.subscribe(options.path + "/token");
 		start();
 	})
 
@@ -33,9 +37,22 @@ if (options.mqtthost) {
 		console.log("Can't connect" + error);
 		process.exit(1)
 	});
+	MQTTclient.on('message', function (topic, message, packet) {
+		try {
+			if (access_token === undefined && topic.includes("token")) {
+				access_token = message;
+				start();
+			}
+		} catch (error) {
+			console.log("Error  : ", error);
+			console.log("Message: ", message.toString());
+		}
+	});
 } else {
 	start();
 }
+
+
 async function getAccessToken() {
 
 	return new Promise((resolve, reject) => {
@@ -46,6 +63,7 @@ async function getAccessToken() {
 			path: '/api/generateToken',
 			method: 'POST',
 			timeout: 3000,
+			localAddress: options.bind,
 			headers: {
 				'Content-Type': 'application/json',
 				'Content-Length': Buffer.byteLength(postData)
@@ -53,12 +71,12 @@ async function getAccessToken() {
 		};
 
 		let req = https.request(options, function (res) {
-			var body = '';
+			let body = '';
 			res.on('data', function (chunk) {
 				body += chunk;
 			});
 			res.on('end', function () {
-				var response;
+				let response;
 
 				try {
 					response = JSON.parse(body);
@@ -80,43 +98,43 @@ async function getAccessToken() {
 	});
 }
 
-async function sendMqtt(data) {
-	MQTTclient.publish(options.path + "/" + options.name, JSON.stringify(data), { retain: true });
-	MQTTclient.end();
+async function sendMqtt(data, retain_flag=true) {
+	MQTTclient.publish(options.path + "/" + options.name, JSON.stringify(data), { retain: retain_flag });
 }
 
 async function getForecast(access_token) {
 	return new Promise((resolve, reject) => {
 		https.get("https://prod-ap.inthub.basf.com/m-weather/v1/weatherDetails?lang=de&latitude=" + options.latitude + "&longitude=" + options.longitude + "&siteidentifier=DE&cachesize=5", {
 			timeout: 3000,
+			localAddress: options.bind,
 			headers: {
 				'Authorization': 'Bearer ' + access_token
 			}
 		}, function (res) {
-			var body = '';
+			let body = '';
 			res.on('data', function (chunk) {
 				body += chunk;
 			});
 			res.on('end', function () {
-				var response;
+				let response;
 				try {
 					response = JSON.parse(body);
 				} catch (e) {
 					reject(e.message);
 					return;
 				}
-				var datecnt = 0;
-				var obj = {};
-				var skipped = false;
-				var first = true;
+				let datecnt = 0;
+				let obj = {};
+				let skipped = false;
+				let first = true;
 
 				obj.lastUpdated = response.lastUpdated;
 				response.days1h.forEach(day => {
 					for (const key in day) {
-						var datestr = response.day1h.isotime[datecnt];
-						var dayradwm2 = 0;
+						let datestr = response.day1h.isotime[datecnt];
+						let dayradwm2 = 0;
 						day[key].forEach(hour => {
-							var isodate = response.day1h.isotime[datecnt++];
+							let isodate = response.day1h.isotime[datecnt++];
 							dayradwm2 += hour.radwm2;
 							if (options.debug) {
 								console.log("hour: " + isodate, " radwm2: " + hour.radwm2);
@@ -152,10 +170,20 @@ async function getForecast(access_token) {
 }
 
 async function start() {
-	var tries = options.retry;
-	let access_token = await getAccessToken().catch((e) => { console.log("Error getting access token: " + e); process.exit(1) });
+	let tries = options.retry;
+	if(options.token) {
+		access_token = await getAccessToken().catch((e) => { console.log("Error getting access token: " + e); process.exit(1) });
+		console.log("Access token: " + access_token);
+		MQTTclient.publish(options.path + "/token", access_token, { retain: true });
+	} else {
+		if(!access_token) {
+			console.log("No access token received. Please provide a token via MQTT or command line.");
+			return;
+		}
+	}
+
 	while (tries) {
-		var obj = await getForecast(access_token).catch((e) => { tries-- });
+		let obj = await getForecast(access_token).catch((e) => { tries-- });
 		if (obj && Object.keys(obj).length) {
 			if (options.debug) {
 				console.log("MQTT host     : " + options.mqtthost);
