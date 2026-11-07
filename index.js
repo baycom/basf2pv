@@ -2,6 +2,7 @@ var https = require('https');
 var util = require('util');
 var mqtt = require('mqtt');
 const commandLineArgs = require('command-line-args');
+const { time } = require('console');
 
 var MQTTclient;
 
@@ -36,16 +37,65 @@ if (options.mqtthost) {
 } else {
 	start();
 }
+async function getAccessToken() {
+	
+	return new Promise((resolve, reject) => {
+		const postData = JSON.stringify({ "apiType": "m-weather-eapi" });
+		const options = {
+		hostname: 'xp-prod.frontend-author.basfagri-prod.magnolia-platform.io',
+		port: 443,
+		path: '/api/generateToken',
+		method: 'POST',
+		timeout: 3000,
+		headers: {
+				'Content-Type': 'application/json',
+				'Content-Length': Buffer.byteLength(postData)
+			}
+		};
+//		console.log("Getting access token from " + options.hostname + options.path);
+
+		let req = https.request(options, function (res) {
+			var body = '';
+			res.on('data', function (chunk) {
+				body += chunk;
+//				console.log("Access token response: " + chunk);
+			});
+			res.on('end', function () {
+				var response;
+//				console.log("Access token response: " + body);
+
+				try {
+					response = JSON.parse(body);
+				} catch (e) {
+					reject(e.message);
+					return;
+				}
+				if(response.access_token == undefined) {
+					reject("No access token received");
+					return;
+				} 
+				resolve(response.access_token);
+			});
+		}).on('error', function (e) {
+			console.log("Got error: " + e.message);
+			reject(e.message);
+		});
+		req.write(postData);
+	});
+}
 
 async function sendMqtt(data) {
 	MQTTclient.publish(options.path + "/" + options.name, JSON.stringify(data), { retain: true });
 	MQTTclient.end();
 }
 
-async function getForecast() {
+async function getForecast(access_token) {
 	return new Promise((resolve, reject) => {
-		https.get("https://www.agrar.basf.de/api/weather/weatherDetails?lang=de&latitude=" + options.latitude + "&longitude=" + options.longitude, {
-			timeout: 3000
+		https.get("https://prod-ap.inthub.basf.com/m-weather/v1/weatherDetails?lang=de&latitude=" + options.latitude + "&longitude=" + options.longitude + "&siteidentifier=DE&cachesize=5", {
+			timeout: 3000,
+			headers: {
+				'Authorization': 'Bearer ' + access_token
+			}
 		}, function (res) {
 			var body = '';
 			res.on('data', function (chunk) {
@@ -103,8 +153,10 @@ async function getForecast() {
 
 async function start() {
 	var tries = options.retry;
+	let access_token;
+	access_token = await getAccessToken().catch((e) => { console.log("Error getting access token: " + e); process.exit(1) });
 	while (tries) {
-		var obj = await getForecast().catch((e) => { tries-- });
+		var obj = await getForecast(access_token).catch((e) => { tries-- });
 		if (obj && Object.keys(obj).length) {
 			if (options.debug) {
 				console.log("MQTT host     : " + options.mqtthost);
