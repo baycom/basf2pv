@@ -2,7 +2,6 @@ var https = require('https');
 var util = require('util');
 var mqtt = require('mqtt');
 const commandLineArgs = require('command-line-args');
-const { time } = require('console');
 
 var MQTTclient;
 
@@ -52,17 +51,14 @@ async function getAccessToken() {
 				'Content-Length': Buffer.byteLength(postData)
 			}
 		};
-//		console.log("Getting access token from " + options.hostname + options.path);
 
 		let req = https.request(options, function (res) {
 			var body = '';
 			res.on('data', function (chunk) {
 				body += chunk;
-//				console.log("Access token response: " + chunk);
 			});
 			res.on('end', function () {
 				var response;
-//				console.log("Access token response: " + body);
 
 				try {
 					response = JSON.parse(body);
@@ -132,10 +128,10 @@ async function getForecast(access_token) {
 							let energy = (dayradwm2 * options.factor) / 1000;
 							energy =  energy.toFixed(0);
 							console.log(date.toDateString() + " : " + dayradwm2 + "w/m2 / " + energy + "kWh");
-							if(first) {
-							  obj["energy"] = parseInt(energy);
-							  obj["time"] = datestr;
-							  first = false;
+							obj["energy"] = parseInt(energy);
+							obj["time"] = datestr;
+							if (options.debug) {
+								console.log(util.inspect(obj));
 							}
 							if (options.mqtthost) {
 								sendMqtt(obj, first);
@@ -175,10 +171,10 @@ async function start() {
 			console.log("Longitude     : " + obj.longitude);
 			console.log("Factor        : " + obj.factor);
 			console.log("Last updated  : " + obj.lastUpdated);
-			if (options.debug) {
-				console.log(util.inspect(obj));
-			}
 			break;
 		}
+	}
+	if (options.mqtthost) {
+		MQTTclient.end();
 	}
 }
