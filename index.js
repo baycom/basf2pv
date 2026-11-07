@@ -137,6 +137,10 @@ async function getForecast(access_token) {
 							  obj["time"] = datestr;
 							  first = false;
 							}
+							if (options.mqtthost) {
+								sendMqtt(obj, first);
+								first = false;
+							}
 						} else {
 							skipped = true;
 						}
@@ -173,10 +177,6 @@ async function start() {
 			console.log("Last updated  : " + obj.lastUpdated);
 			if (options.debug) {
 				console.log(util.inspect(obj));
-			}
-
-			if (options.mqtthost) {
-				await sendMqtt(obj);
 			}
 			break;
 		}
