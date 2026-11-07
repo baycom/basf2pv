@@ -37,16 +37,16 @@ if (options.mqtthost) {
 	start();
 }
 async function getAccessToken() {
-	
+
 	return new Promise((resolve, reject) => {
 		const postData = JSON.stringify({ "apiType": "m-weather-eapi" });
 		const options = {
-		hostname: 'xp-prod.frontend-author.basfagri-prod.magnolia-platform.io',
-		port: 443,
-		path: '/api/generateToken',
-		method: 'POST',
-		timeout: 3000,
-		headers: {
+			hostname: 'xp-prod.frontend-author.basfagri-prod.magnolia-platform.io',
+			port: 443,
+			path: '/api/generateToken',
+			method: 'POST',
+			timeout: 3000,
+			headers: {
 				'Content-Type': 'application/json',
 				'Content-Length': Buffer.byteLength(postData)
 			}
@@ -66,10 +66,10 @@ async function getAccessToken() {
 					reject(e.message);
 					return;
 				}
-				if(response.access_token == undefined) {
+				if (response.access_token == undefined) {
 					reject("No access token received");
 					return;
-				} 
+				}
 				resolve(response.access_token);
 			});
 		}).on('error', function (e) {
@@ -118,7 +118,7 @@ async function getForecast(access_token) {
 						day[key].forEach(hour => {
 							var isodate = response.day1h.isotime[datecnt++];
 							dayradwm2 += hour.radwm2;
-							if(options.debug) {
+							if (options.debug) {
 								console.log("hour: " + isodate, " radwm2: " + hour.radwm2);
 							}
 						});
@@ -126,7 +126,7 @@ async function getForecast(access_token) {
 							//obj[datestr] = dayradwm2;
 							const date = new Date(datestr);
 							let energy = (dayradwm2 * options.factor) / 1000;
-							energy =  energy.toFixed(0);
+							energy = energy.toFixed(0);
 							console.log(date.toDateString() + " : " + dayradwm2 + "w/m2 / " + energy + "kWh");
 							obj["energy"] = parseInt(energy);
 							obj["time"] = datestr;
@@ -153,8 +153,7 @@ async function getForecast(access_token) {
 
 async function start() {
 	var tries = options.retry;
-	let access_token;
-	access_token = await getAccessToken().catch((e) => { console.log("Error getting access token: " + e); process.exit(1) });
+	let access_token = await getAccessToken().catch((e) => { console.log("Error getting access token: " + e); process.exit(1) });
 	while (tries) {
 		var obj = await getForecast(access_token).catch((e) => { tries-- });
 		if (obj && Object.keys(obj).length) {
@@ -166,7 +165,7 @@ async function start() {
 			obj.latitude = options.latitude;
 			obj.longitude = options.longitude;
 			obj.factor = options.factor;
-			console.log("\nName          : " + options.name); 
+			console.log("\nName          : " + options.name);
 			console.log("Latitude      : " + obj.latitude);
 			console.log("Longitude     : " + obj.longitude);
 			console.log("Factor        : " + obj.factor);
