@@ -5,6 +5,7 @@ const commandLineArgs = require('command-line-args');
 
 let MQTTclient;
 let access_token;
+let all_done = false;
 
 const optionDefinitions = [
 	{ name: 'path', alias: 'p', type: String, defaultValue: "prognosis/pv" },
@@ -30,22 +31,24 @@ if (options.mqtthost) {
 			console.log("MQTT connected");
 		}
 		MQTTclient.subscribe(options.path + "/token");
-		start();
+		init();
 	})
 
 	MQTTclient.on("error", function (error) {
-		console.log("Can't connect" + error);
+		console.error("Can't connect: " + error);
 		process.exit(1)
 	});
 	MQTTclient.on('message', function (topic, message, packet) {
 		try {
 			if (access_token === undefined && topic.includes("token")) {
 				access_token = message;
-				start();
+				if(all_done == false ) {
+					start();
+				}
 			}
 		} catch (error) {
-			console.log("Error  : ", error);
-			console.log("Message: ", message.toString());
+			console.error("Error  : ", error);
+			console.error("Message: ", message.toString());
 		}
 	});
 } else {
@@ -54,10 +57,9 @@ if (options.mqtthost) {
 
 
 async function getAccessToken() {
-
 	return new Promise((resolve, reject) => {
 		const postData = JSON.stringify({ "apiType": "m-weather-eapi" });
-		const options = {
+		const opt = {
 			hostname: 'xp-prod.frontend-author.basfagri-prod.magnolia-platform.io',
 			port: 443,
 			path: '/api/generateToken',
@@ -70,14 +72,13 @@ async function getAccessToken() {
 			}
 		};
 
-		let req = https.request(options, function (res) {
+		let req = https.request(opt, function (res) {
 			let body = '';
 			res.on('data', function (chunk) {
 				body += chunk;
 			});
 			res.on('end', function () {
 				let response;
-
 				try {
 					response = JSON.parse(body);
 				} catch (e) {
@@ -91,7 +92,7 @@ async function getAccessToken() {
 				resolve(response.access_token);
 			});
 		}).on('error', function (e) {
-			console.log("Got error: " + e.message);
+			console.error("Got error: " + e.message);
 			reject(e.message);
 		});
 		req.write(postData);
@@ -163,45 +164,49 @@ async function getForecast(access_token) {
 				resolve(obj);
 			});
 		}).on('error', function (e) {
-			console.log("Got error: " + e.message);
+			console.error("Got error: " + e.message);
 			reject(e.message);
 		});
 	});
 }
 
+async function init() {
+	if(options.token) {
+		access_token = await getAccessToken().catch((e) => { console.error("Error getting access token: " + e); process.exit(1) });
+		if(options.debug) {
+			console.log("Access token: " + access_token);
+		}
+		MQTTclient.publish(options.path + "/token", access_token, { retain: true });
+	} 
+}
+
 async function start() {
 	let tries = options.retry;
-	if(options.token) {
-		access_token = await getAccessToken().catch((e) => { console.log("Error getting access token: " + e); process.exit(1) });
-		console.log("Access token: " + access_token);
-		MQTTclient.publish(options.path + "/token", access_token, { retain: true });
-	} else {
-		if(!access_token) {
-			console.log("No access token received. Please provide a token via MQTT or command line.");
-			return;
-		}
-	}
-
-	while (tries) {
-		let obj = await getForecast(access_token).catch((e) => { tries-- });
-		if (obj && Object.keys(obj).length) {
-			if (options.debug) {
-				console.log("MQTT host     : " + options.mqtthost);
-				console.log("MQTT Client ID: " + options.id);
-				console.log("MQTT path     : " + options.path)
+	try {
+		while (access_token != undefined && tries && all_done == false) {
+			let obj = await getForecast(access_token).catch((e) => { tries-- });
+			if (obj && Object.keys(obj).length) {
+				if (options.debug) {
+					console.log("MQTT host     : " + options.mqtthost);
+					console.log("MQTT Client ID: " + options.id);
+					console.log("MQTT path     : " + options.path)
+				}
+				obj.latitude = options.latitude;
+				obj.longitude = options.longitude;
+				obj.factor = options.factor;
+				console.log("\nName          : " + options.name);
+				console.log("Latitude      : " + obj.latitude);
+				console.log("Longitude     : " + obj.longitude);
+				console.log("Factor        : " + obj.factor);
+				console.log("Last updated  : " + obj.lastUpdated);
+				all_done = true;
 			}
-			obj.latitude = options.latitude;
-			obj.longitude = options.longitude;
-			obj.factor = options.factor;
-			console.log("\nName          : " + options.name);
-			console.log("Latitude      : " + obj.latitude);
-			console.log("Longitude     : " + obj.longitude);
-			console.log("Factor        : " + obj.factor);
-			console.log("Last updated  : " + obj.lastUpdated);
-			break;
 		}
-	}
-	if (options.mqtthost) {
-		MQTTclient.end();
+		if (options.mqtthost) {
+			MQTTclient.end();
+		}
+	}  catch (error) {
+			console.error("Error  : ", error);
+			console.error("Message: ", message.toString());
 	}
 }
