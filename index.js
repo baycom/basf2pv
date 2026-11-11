@@ -5,6 +5,7 @@ const commandLineArgs = require('command-line-args');
 
 let MQTTclient;
 let access_token;
+let got_new_token = false;
 let all_done = false;
 
 const optionDefinitions = [
@@ -40,9 +41,12 @@ if (options.mqtthost) {
 	});
 	MQTTclient.on('message', function (topic, message, packet) {
 		try {
-			if (access_token === undefined && topic.includes("token")) {
+			if ((!options.token || got_new_token) && topic.includes("token")) {
 				access_token = message;
 				if(all_done == false ) {
+					if(options.debug) {
+						console.log("got token: ", access_token.toString());
+					}
 					start();
 				}
 			}
@@ -128,7 +132,9 @@ async function getForecast(access_token) {
 				let obj = {};
 				let skipped = false;
 				let first = true;
-
+				if(options.debug) {
+					console.log("response: ", response);
+				}
 				obj.lastUpdated = response.lastUpdated;
 				response.days1h.forEach(day => {
 					for (const key in day) {
@@ -171,12 +177,16 @@ async function getForecast(access_token) {
 }
 
 async function init() {
+	if(options.debug) {
+		console.log("init: ", options.token);
+	}
 	if(options.token) {
 		access_token = await getAccessToken().catch((e) => { console.error("Error getting access token: " + e); process.exit(1) });
 		if(options.debug) {
 			console.log("Access token: " + access_token);
 		}
 		MQTTclient.publish(options.path + "/token", access_token, { retain: true });
+		got_new_token = true;
 	} 
 }
 
@@ -205,6 +215,7 @@ async function start() {
 		if (options.mqtthost) {
 			MQTTclient.end();
 		}
+		process.exit(1);
 	}  catch (error) {
 			console.error("Error  : ", error);
 			console.error("Message: ", message.toString());
